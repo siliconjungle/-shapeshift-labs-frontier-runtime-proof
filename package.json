@@ -1,0 +1,60 @@
+{
+  "name": "@shapeshift-labs/frontier-runtime-proof",
+  "version": "0.1.0",
+  "description": "Runtime-neutral proof capsule, telemetry, and admission primitives for Frontier merge and review evidence.",
+  "type": "module",
+  "license": "MIT",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/siliconjungle/-shapeshift-labs-frontier-runtime-proof.git"
+  },
+  "homepage": "https://github.com/siliconjungle/-shapeshift-labs-frontier-runtime-proof#readme",
+  "bugs": {
+    "url": "https://github.com/siliconjungle/-shapeshift-labs-frontier-runtime-proof/issues"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "benchmarks/package-bench.mjs"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "npm run build && npm run typecheck && node test/smoke.mjs && node test/fuzz.mjs --cases 300",
+    "prepack": "npm run test",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p test/tsconfig.json --noEmit",
+    "fuzz": "npm run build && node test/fuzz.mjs",
+    "bench": "npm run build && node benchmarks/package-bench.mjs --out benchmarks/results/frontier-runtime-proof-package-bench-latest.json",
+    "pack:dry": "npm pack --dry-run"
+  },
+  "keywords": [
+    "frontier",
+    "runtime-proof",
+    "evidence",
+    "semantic-merge",
+    "browser",
+    "telemetry",
+    "admission"
+  ],
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "typescript": "^6.0.3"
+  }
+}

@@ -1,0 +1,6 @@
+dist/
+node_modules/
+*.tgz
+npm-debug.log*
+benchmarks/results/*.json
+!benchmarks/results/.gitkeep
