@@ -1,8 +1,10 @@
 import assert from 'node:assert';
 import {
   FRONTIER_RUNTIME_PROOF_MODES,
+  createSourceBoundRuntimeProof,
   hashRuntimeProofValue,
   stableRuntimeProofJson,
+  validateSourceBoundRuntimeProof,
   validateRuntimeProofEvidence
 } from '../dist/index.js';
 
@@ -51,6 +53,43 @@ for (let run = 0; run < cases; run++) {
   const right = { n: left.n, a: proof.runtimeProofCapsule.signals, z: run };
   assert.equal(stableRuntimeProofJson(left), stableRuntimeProofJson(right));
   assert.equal(hashRuntimeProofValue(left), hashRuntimeProofValue(right));
+
+  const sourceHashes = {
+    base: `source-base-${run}`,
+    worker: `source-worker-${run}`,
+    head: `source-head-${run}`,
+    output: `source-output-${run}`
+  };
+  if (shouldPass) {
+    const sourceBoundProof = createSourceBoundRuntimeProof({
+      sourcePath: `src/view-${run}.html`,
+      reasonCode: requiredSignal,
+      boundaryKey: `boundary-${randomInt(4)}`,
+      requiredSignals: [requiredSignal],
+      baseSourceHash: sourceHashes.base,
+      workerSourceHash: sourceHashes.worker,
+      headSourceHash: sourceHashes.head,
+      outputSourceHash: sourceHashes.output,
+      runtimeProofCapsule: proof.runtimeProofCapsule
+    }, {
+      maxCumulativeLayoutShift: 0.1
+    });
+    const staleSourceHash = random() < 0.2;
+    const broadClaim = random() < 0.2;
+    const sourceValidation = validateSourceBoundRuntimeProof({
+      ...sourceBoundProof,
+      outputSourceHash: staleSourceHash ? `stale-${run}` : sourceHashes.output,
+      autoMergeClaim: broadClaim
+    }, {
+      sourcePath: `src/view-${run}.html`,
+      reasonCode: requiredSignal,
+      sourceHashes,
+      requiredSourceRoles: ['base', 'worker', 'head', 'output'],
+      requiredSignals: [requiredSignal],
+      maxCumulativeLayoutShift: 0.1
+    });
+    assert.equal(sourceValidation.ok, !staleSourceHash && !broadClaim, `source-bound validation mismatch for run ${run}`);
+  }
 }
 
 if (args.has('--json')) {

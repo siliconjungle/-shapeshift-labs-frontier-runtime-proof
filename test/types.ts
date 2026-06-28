@@ -1,11 +1,16 @@
 import {
+  createSourceBoundRuntimeProof,
   createRuntimeProofCapsule,
+  runtimeProofSourceHashes,
   runtimeEvidenceMetadataFromProof,
+  validateSourceBoundRuntimeProof,
   validateRuntimeProofEvidence,
+  type FrontierRuntimeProofSourceHashes,
   type FrontierRuntimeEvidenceMetadata,
   type FrontierRuntimeProofCapsule,
   type FrontierRuntimeProofMode,
-  type FrontierRuntimeProofValidation
+  type FrontierRuntimeProofValidation,
+  type FrontierSourceBoundRuntimeProof
 } from '../dist/index.js';
 import {
   capturePlaywrightRuntimeProof,
@@ -35,6 +40,33 @@ const validation: FrontierRuntimeProofValidation = validateRuntimeProofEvidence(
 if (metadata && validation.ok && validation.metadata.capsule) {
   metadata.signals satisfies string[];
   validation.metadata.capsule.hash satisfies string;
+}
+
+const sourceBoundProof: FrontierSourceBoundRuntimeProof = createSourceBoundRuntimeProof({
+  sourcePath: 'src/view.html',
+  reasonCode: 'html-event-handler-runtime-boundary',
+  boundaryKey: 'button:onClick',
+  requiredSignals: ['html-event-handler-runtime'],
+  baseSourceHash: 'source:base',
+  workerSourceHash: 'source:worker',
+  headSourceHash: 'source:head',
+  outputSourceHash: 'source:output',
+  runtimeProofCapsule: capsule
+});
+
+const sourceHashes: FrontierRuntimeProofSourceHashes = runtimeProofSourceHashes(sourceBoundProof);
+const sourceBoundValidation = validateSourceBoundRuntimeProof(sourceBoundProof, {
+  sourcePath: 'src/view.html',
+  reasonCode: ['html-event-handler-runtime-boundary'],
+  boundaryKey: ['button:onClick'],
+  sourceHashes,
+  requiredSourceRoles: ['base', 'worker', 'head', 'output'],
+  requiredSignals: ['html-event-handler-runtime']
+});
+
+if (sourceBoundValidation.ok) {
+  sourceBoundValidation.metadata.probeId satisfies string;
+  sourceBoundValidation.sourceHashes.output satisfies string | undefined;
 }
 
 const page: FrontierPlaywrightLikePage = {

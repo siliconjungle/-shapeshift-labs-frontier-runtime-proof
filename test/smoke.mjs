@@ -1,11 +1,15 @@
 import assert from 'node:assert';
 import {
+  FRONTIER_SOURCE_BOUND_RUNTIME_PROOF_KIND,
+  createSourceBoundRuntimeProof,
   createRuntimeProofCapsule,
   hashRuntimeProofValue,
   normalizeRuntimeProofCapsule,
   runtimeEvidenceMetadataFromProof,
+  runtimeProofSourceHashes,
   runtimeProofSignals,
   stableRuntimeProofJson,
+  validateSourceBoundRuntimeProof,
   validateRuntimeProofEvidence
 } from '../dist/index.js';
 import {
@@ -69,6 +73,79 @@ assert.equal(metadata.capsule.hash, capsule.hash);
 
 const validation = validateRuntimeProofEvidence(proof, { requiredSignals: ['html-event-handler-runtime'] });
 assert.equal(validation.ok, true);
+
+const sourceHashes = {
+  base: 'source:base',
+  worker: 'source:worker',
+  head: 'source:head',
+  output: 'source:output'
+};
+const sourceBoundProof = createSourceBoundRuntimeProof({
+  id: 'proof_source_bound_html_event',
+  sourcePath: 'src/view.html',
+  reasonCode: 'html-event-handler-runtime-boundary',
+  boundaryKey: 'button:onClick',
+  requiredSignals: ['html-event-handler-runtime'],
+  baseSourceHash: sourceHashes.base,
+  workerSourceHash: sourceHashes.worker,
+  headSourceHash: sourceHashes.head,
+  outputSourceHash: sourceHashes.output,
+  runtimeProofCapsule: proof.runtimeProofCapsule
+}, {
+  requireTelemetryHash: true,
+  maxCumulativeLayoutShift: 0.01
+});
+assert.equal(sourceBoundProof.kind, FRONTIER_SOURCE_BOUND_RUNTIME_PROOF_KIND);
+assert.equal(sourceBoundProof.status, 'passed');
+assert.equal(sourceBoundProof.runtimeEvidenceBound, true);
+assert.equal(sourceBoundProof.autoMergeClaim, false);
+assert.equal(sourceBoundProof.semanticEquivalenceClaim, false);
+assert.equal(sourceBoundProof.browserRuntimeEquivalenceClaim, false);
+assert.deepEqual(runtimeProofSourceHashes(sourceBoundProof), sourceHashes);
+assert.equal(sourceBoundProof.runtimeProofCapsule.hash, capsule.hash);
+assert.equal(typeof sourceBoundProof.hash, 'string');
+
+const sourceBoundValidation = validateSourceBoundRuntimeProof(sourceBoundProof, {
+  sourcePath: 'src/view.html',
+  reasonCode: 'html-event-handler-runtime-boundary',
+  boundaryKey: 'button:onClick',
+  requiredSignals: ['html-event-handler-runtime'],
+  sourceHashes,
+  requiredSourceRoles: ['base', 'worker', 'head', 'output'],
+  requireTelemetryHash: true,
+  maxCumulativeLayoutShift: 0.01
+});
+assert.equal(sourceBoundValidation.ok, true);
+assert.deepEqual(sourceBoundValidation.sourceHashes, sourceHashes);
+
+const staleSourceBoundValidation = validateSourceBoundRuntimeProof({
+  ...sourceBoundProof,
+  outputSourceHash: 'source:stale'
+}, {
+  sourcePath: 'src/view.html',
+  reasonCode: 'html-event-handler-runtime-boundary',
+  sourceHashes,
+  requiredSourceRoles: ['base', 'worker', 'head', 'output'],
+  requiredSignals: ['html-event-handler-runtime']
+});
+assert.equal(staleSourceBoundValidation.ok, false);
+assert.equal(staleSourceBoundValidation.reasonCodes.includes('source-bound-runtime-proof-source-hash-mismatch'), true);
+
+const broadClaimValidation = validateSourceBoundRuntimeProof({
+  ...sourceBoundProof,
+  browserRuntimeEquivalenceClaim: true
+}, {
+  sourceHashes,
+  requiredSignals: ['html-event-handler-runtime']
+});
+assert.equal(broadClaimValidation.ok, false);
+assert.equal(broadClaimValidation.reasonCodes.includes('source-bound-runtime-proof-broad-claim-present'), true);
+
+const sourceTextHashes = runtimeProofSourceHashes({
+  sourceTexts: { base: '<main />', worker: '<main data-worker />', head: '<main data-head />', output: '<main data-worker data-head />' }
+}, hashRuntimeProofValue);
+assert.equal(sourceTextHashes.base, hashRuntimeProofValue('<main />'));
+assert.equal(sourceTextHashes.output, hashRuntimeProofValue('<main data-worker data-head />'));
 
 const directCapsule = createRuntimeProofCapsule({
   mode: 'app-shell-fixture',

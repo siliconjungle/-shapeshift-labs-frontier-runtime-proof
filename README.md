@@ -63,6 +63,45 @@ const validation = validateRuntimeProofEvidence(proof, {
 
 The return value is machine-checkable. Missing commands, probes, evidence hashes, required signals, telemetry hashes, failing statuses, blocked environments, and excessive cumulative layout shift all produce explicit reason codes.
 
+## Source-Bound Proofs
+
+Semantic merge callers usually need more than "a browser test passed." They need proof that the runtime evidence applies to the exact source versions being merged. The source-bound helpers normalize `base` / `worker` / `head` / `output` hashes, bind them to the runtime capsule, and reject broad proof claims.
+
+```js
+import {
+  createSourceBoundRuntimeProof,
+  validateSourceBoundRuntimeProof
+} from '@shapeshift-labs/frontier-runtime-proof';
+
+const sourceProof = createSourceBoundRuntimeProof({
+  sourcePath: 'src/view.html',
+  reasonCode: 'html-event-handler-runtime-boundary',
+  boundaryKey: 'button:onClick',
+  requiredSignals: ['html-event-handler-runtime'],
+  baseSourceHash: 'source:base',
+  workerSourceHash: 'source:worker',
+  headSourceHash: 'source:head',
+  outputSourceHash: 'source:output',
+  runtimeProofCapsule: proof.runtimeProofCapsule
+});
+
+const admission = validateSourceBoundRuntimeProof(sourceProof, {
+  sourcePath: 'src/view.html',
+  reasonCode: 'html-event-handler-runtime-boundary',
+  boundaryKey: 'button:onClick',
+  sourceHashes: {
+    base: 'source:base',
+    worker: 'source:worker',
+    head: 'source:head',
+    output: 'source:output'
+  },
+  requiredSourceRoles: ['base', 'worker', 'head', 'output'],
+  requiredSignals: ['html-event-handler-runtime']
+});
+```
+
+The proof object keeps `autoMergeClaim`, `semanticEquivalenceClaim`, `runtimeEquivalenceClaim`, `renderEquivalenceClaim`, `browserRuntimeEquivalenceClaim`, and `browserRenderEquivalenceClaim` false. Downstream merge packages can admit a specific boundary after checking the source hashes, reason code, boundary key, runtime signals, and telemetry constraints.
+
 ## Boundary
 
 This package owns only the runtime-neutral proof record and admission helpers. Browser execution belongs in adapters such as Playwright harnesses, app-specific test runners, or coordinator packages. Semantic merge packages can depend on this package without importing browser automation or app runtime code.

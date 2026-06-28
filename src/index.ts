@@ -2,6 +2,8 @@ export const FRONTIER_RUNTIME_PROOF_CAPSULE_KIND = 'frontier.runtime-proof.capsu
 export const FRONTIER_RUNTIME_PROOF_CAPSULE_VERSION = 1;
 export const FRONTIER_RUNTIME_PROOF_EVIDENCE_KIND = 'frontier.runtime-proof.evidence';
 export const FRONTIER_RUNTIME_PROOF_EVIDENCE_VERSION = 1;
+export const FRONTIER_SOURCE_BOUND_RUNTIME_PROOF_KIND = 'frontier.runtime-proof.source-bound-proof';
+export const FRONTIER_SOURCE_BOUND_RUNTIME_PROOF_VERSION = 1;
 
 export const FRONTIER_RUNTIME_PROOF_MODES = [
   'isolated-fixture',
@@ -13,8 +15,16 @@ export const FRONTIER_RUNTIME_PROOF_BLOCKED_MODES = [
   'environment-blocked'
 ] as const;
 
+export const FRONTIER_RUNTIME_PROOF_SOURCE_ROLES = [
+  'base',
+  'worker',
+  'head',
+  'output'
+] as const;
+
 export type FrontierRuntimeProofMode = typeof FRONTIER_RUNTIME_PROOF_MODES[number];
 export type FrontierRuntimeProofBlockedMode = typeof FRONTIER_RUNTIME_PROOF_BLOCKED_MODES[number];
+export type FrontierRuntimeProofSourceRole = typeof FRONTIER_RUNTIME_PROOF_SOURCE_ROLES[number];
 export type FrontierRuntimeProofStatus = 'passed' | 'failed' | 'blocked' | 'skipped' | string;
 export type FrontierRuntimeProofReasonCode =
   | 'runtime-proof-capsule-mode-missing'
@@ -27,7 +37,16 @@ export type FrontierRuntimeProofReasonCode =
   | 'runtime-proof-required-signal-missing'
   | 'runtime-proof-capsule-missing'
   | 'runtime-proof-telemetry-hash-missing'
-  | 'runtime-proof-cumulative-layout-shift-exceeded';
+  | 'runtime-proof-cumulative-layout-shift-exceeded'
+  | 'source-bound-runtime-proof-kind-invalid'
+  | 'source-bound-runtime-proof-not-passed'
+  | 'source-bound-runtime-proof-source-path-mismatch'
+  | 'source-bound-runtime-proof-source-hash-missing'
+  | 'source-bound-runtime-proof-source-hash-mismatch'
+  | 'source-bound-runtime-proof-reason-mismatch'
+  | 'source-bound-runtime-proof-boundary-mismatch'
+  | 'source-bound-runtime-proof-record-mismatch'
+  | 'source-bound-runtime-proof-broad-claim-present';
 
 export interface FrontierRuntimeProofViewport {
   width?: number;
@@ -40,6 +59,9 @@ export interface FrontierRuntimeProofViewport {
 export interface FrontierRuntimeProofCapsuleInput {
   kind?: string;
   version?: number;
+  runtimeProofCapsule?: FrontierRuntimeProofCapsuleInput;
+  proofCapsule?: FrontierRuntimeProofCapsuleInput;
+  fixtureCapsule?: FrontierRuntimeProofCapsuleInput;
   mode?: FrontierRuntimeProofMode | FrontierRuntimeProofBlockedMode | string;
   status?: FrontierRuntimeProofStatus;
   command?: string;
@@ -91,7 +113,136 @@ export interface FrontierRuntimeProofCapsuleInput {
   layoutShiftHash?: string;
   screenshotHash?: string;
   cumulativeLayoutShift?: number;
+  runtimeEvidence?: {
+    capsule?: FrontierRuntimeProofCapsuleInput;
+  };
+  browserEvidence?: {
+    capsule?: FrontierRuntimeProofCapsuleInput;
+  };
 }
+
+export type FrontierRuntimeProofSourceHashMap = Partial<Record<FrontierRuntimeProofSourceRole | 'merged', string>>;
+export type FrontierRuntimeProofSourceTextMap = Partial<Record<FrontierRuntimeProofSourceRole | 'merged', string>>;
+
+export interface FrontierRuntimeProofSourceBindingInput {
+  base?: string;
+  worker?: string;
+  head?: string;
+  output?: string;
+  merged?: string;
+  baseSourceText?: string;
+  workerSourceText?: string;
+  headSourceText?: string;
+  outputSourceText?: string;
+  mergedSourceText?: string;
+  sourceTexts?: FrontierRuntimeProofSourceTextMap;
+  sources?: FrontierRuntimeProofSourceTextMap;
+  baseSourceHash?: string;
+  workerSourceHash?: string;
+  headSourceHash?: string;
+  outputSourceHash?: string;
+  mergedSourceHash?: string;
+  sourceHashes?: FrontierRuntimeProofSourceHashMap;
+  hashes?: FrontierRuntimeProofSourceHashMap;
+}
+
+export interface FrontierRuntimeProofSourceHashes {
+  base?: string;
+  worker?: string;
+  head?: string;
+  output?: string;
+}
+
+export interface FrontierSourceBoundRuntimeProofInput
+  extends FrontierRuntimeProofCapsuleInput, FrontierRuntimeProofSourceBindingInput {
+  id?: string;
+  sourcePath?: string;
+  reasonCode?: string;
+  reasonCodes?: readonly string[];
+  boundaryKey?: string;
+  boundaryKeys?: readonly string[];
+  recordKey?: string;
+  recordKeys?: readonly string[];
+  requiredSignals?: readonly string[];
+  sourceBoundRuntimeProofHash?: string;
+  autoMergeClaim?: boolean;
+  semanticEquivalenceClaim?: boolean;
+  runtimeEquivalenceClaim?: boolean;
+  renderEquivalenceClaim?: boolean;
+  browserRuntimeEquivalenceClaim?: boolean;
+  browserRenderEquivalenceClaim?: boolean;
+}
+
+export interface FrontierSourceBoundRuntimeProof {
+  kind: typeof FRONTIER_SOURCE_BOUND_RUNTIME_PROOF_KIND;
+  version: typeof FRONTIER_SOURCE_BOUND_RUNTIME_PROOF_VERSION;
+  id?: string;
+  status: 'passed';
+  sourcePath?: string;
+  reasonCode?: string;
+  reasonCodes: string[];
+  boundaryKey?: string;
+  boundaryKeys: string[];
+  recordKey?: string;
+  recordKeys: string[];
+  baseSourceHash?: string;
+  workerSourceHash?: string;
+  headSourceHash?: string;
+  outputSourceHash?: string;
+  runtimeCommand: string;
+  runtimeProbeId: string;
+  runtimeEvidenceHash: string;
+  runtimeSignals: string[];
+  requiredRuntimeSignals: string[];
+  runtimeProofCapsule?: FrontierRuntimeProofCapsule;
+  runtimeProofMode?: FrontierRuntimeProofMode;
+  runtimeProofCapsuleHash?: string;
+  runtimeBrowserName?: string;
+  runtimeBrowserVersion?: string;
+  runtimeViewport?: FrontierRuntimeProofViewport;
+  runtimeTelemetryHash?: string;
+  runtimeDomSnapshotHash?: string;
+  runtimeComputedStyleHash?: string;
+  runtimeLayoutSnapshotHash?: string;
+  runtimeEventTraceHash?: string;
+  runtimeLayoutShiftHash?: string;
+  runtimeScreenshotHash?: string;
+  runtimeCumulativeLayoutShift?: number;
+  runtimeEvidenceBound: true;
+  autoMergeClaim: false;
+  semanticEquivalenceClaim: false;
+  runtimeEquivalenceClaim: false;
+  renderEquivalenceClaim: false;
+  browserRuntimeEquivalenceClaim: false;
+  browserRenderEquivalenceClaim: false;
+  hash: string;
+}
+
+export interface FrontierSourceBoundRuntimeProofOptions extends FrontierRuntimeProofValidationOptions {
+  sourcePath?: string;
+  reasonCode?: string | readonly string[];
+  boundaryKey?: string | readonly string[];
+  recordKey?: string | readonly string[];
+  sourceHashes?: FrontierRuntimeProofSourceHashes;
+  requiredSourceRoles?: readonly FrontierRuntimeProofSourceRole[];
+  sourceTextHash?: (sourceText: string) => string;
+  allowedKinds?: readonly string[];
+  rejectBroadClaims?: boolean;
+}
+
+export type FrontierSourceBoundRuntimeProofValidation =
+  | {
+    ok: true;
+    proof: FrontierSourceBoundRuntimeProof | UnknownRecord;
+    metadata: FrontierRuntimeEvidenceMetadata;
+    sourceHashes: FrontierRuntimeProofSourceHashes;
+  }
+  | {
+    ok: false;
+    reasonCodes: FrontierRuntimeProofReasonCode[];
+    metadataValidation: FrontierRuntimeProofValidation;
+    sourceHashes: FrontierRuntimeProofSourceHashes;
+  };
 
 export interface FrontierRuntimeProofCapsule {
   kind: string;
@@ -366,6 +517,173 @@ export function validateRuntimeProofEvidence(
   };
 }
 
+export function runtimeProofSourceHashes(
+  input: unknown,
+  sourceTextHash?: (sourceText: string) => string
+): FrontierRuntimeProofSourceHashes {
+  const record = asRecord(input);
+  if (!record) return {};
+  return compactRecord({
+    base: sourceHashForRole(record, 'base', sourceTextHash),
+    worker: sourceHashForRole(record, 'worker', sourceTextHash),
+    head: sourceHashForRole(record, 'head', sourceTextHash),
+    output: sourceHashForRole(record, 'output', sourceTextHash)
+  }) as FrontierRuntimeProofSourceHashes;
+}
+
+export function createSourceBoundRuntimeProof(
+  input: FrontierSourceBoundRuntimeProofInput,
+  options: FrontierSourceBoundRuntimeProofOptions = {}
+): FrontierSourceBoundRuntimeProof {
+  const requiredSignals = uniqueStrings(options.requiredSignals ?? input.requiredSignals ?? []);
+  const metadata = runtimeEvidenceMetadataFromProof(input, {
+    ...options,
+    requiredSignals,
+    requireRuntimeProofCapsule: options.requireRuntimeProofCapsule ?? true
+  });
+  if (!metadata) {
+    throw new Error('source-bound runtime proof requires valid runtime evidence metadata');
+  }
+
+  const sourceHashes = runtimeProofSourceHashes(input, options.sourceTextHash);
+  const requiredSourceRoles = options.requiredSourceRoles ?? FRONTIER_RUNTIME_PROOF_SOURCE_ROLES;
+  const missingSourceRole = requiredSourceRoles.find((role) => !sourceHashes[role]);
+  if (missingSourceRole) {
+    throw new Error(`source-bound runtime proof is missing ${missingSourceRole} source hash`);
+  }
+
+  const status = firstString(input.status) ?? 'passed';
+  if (status !== 'passed') {
+    throw new Error(`source-bound runtime proof status is not passed: ${status}`);
+  }
+
+  const capsule = metadata.capsule;
+  const proof = compactRecord({
+    kind: FRONTIER_SOURCE_BOUND_RUNTIME_PROOF_KIND,
+    version: FRONTIER_SOURCE_BOUND_RUNTIME_PROOF_VERSION,
+    id: input.id,
+    status: 'passed' as const,
+    sourcePath: input.sourcePath,
+    reasonCode: input.reasonCode,
+    reasonCodes: uniqueStrings(input.reasonCodes ?? []),
+    boundaryKey: input.boundaryKey,
+    boundaryKeys: uniqueStrings(input.boundaryKeys ?? []),
+    recordKey: input.recordKey,
+    recordKeys: uniqueStrings(input.recordKeys ?? []),
+    baseSourceHash: sourceHashes.base,
+    workerSourceHash: sourceHashes.worker,
+    headSourceHash: sourceHashes.head,
+    outputSourceHash: sourceHashes.output,
+    runtimeCommand: metadata.command,
+    runtimeProbeId: metadata.probeId,
+    runtimeEvidenceHash: metadata.evidenceHash,
+    runtimeSignals: metadata.signals,
+    requiredRuntimeSignals: requiredSignals,
+    runtimeProofCapsule: capsule,
+    runtimeProofMode: capsule?.mode,
+    runtimeProofCapsuleHash: capsule?.hash,
+    runtimeBrowserName: capsule?.browserName,
+    runtimeBrowserVersion: capsule?.browserVersion,
+    runtimeViewport: capsule?.viewport,
+    runtimeTelemetryHash: capsule?.telemetryHash,
+    runtimeDomSnapshotHash: capsule?.domSnapshotHash,
+    runtimeComputedStyleHash: capsule?.computedStyleHash,
+    runtimeLayoutSnapshotHash: capsule?.layoutSnapshotHash,
+    runtimeEventTraceHash: capsule?.eventTraceHash,
+    runtimeLayoutShiftHash: capsule?.layoutShiftHash,
+    runtimeScreenshotHash: capsule?.screenshotHash,
+    runtimeCumulativeLayoutShift: capsule?.cumulativeLayoutShift,
+    runtimeEvidenceBound: true as const,
+    autoMergeClaim: false as const,
+    semanticEquivalenceClaim: false as const,
+    runtimeEquivalenceClaim: false as const,
+    renderEquivalenceClaim: false as const,
+    browserRuntimeEquivalenceClaim: false as const,
+    browserRenderEquivalenceClaim: false as const
+  }) as Omit<FrontierSourceBoundRuntimeProof, 'hash'>;
+
+  return {
+    ...proof,
+    hash: input.sourceBoundRuntimeProofHash ??
+      hashRuntimeProofValue({ ...proof, fingerprintKind: 'frontier.runtime-proof.source-bound-proof.fingerprint.v1' })
+  };
+}
+
+export function validateSourceBoundRuntimeProof(
+  input: unknown,
+  options: FrontierSourceBoundRuntimeProofOptions = {}
+): FrontierSourceBoundRuntimeProofValidation {
+  const proof = asRecord(input);
+  const sourceHashes = runtimeProofSourceHashes(input, options.sourceTextHash);
+  const metadataValidation = validateRuntimeProofEvidence(input, {
+    ...options,
+    requiredSignals: options.requiredSignals,
+    requireRuntimeProofCapsule: options.requireRuntimeProofCapsule ?? true
+  });
+  const reasonCodes: FrontierRuntimeProofReasonCode[] = metadataValidation.ok
+    ? []
+    : [...metadataValidation.reasonCodes];
+
+  const allowedKinds = options.allowedKinds ?? [FRONTIER_SOURCE_BOUND_RUNTIME_PROOF_KIND];
+  if (!proof || !allowedKinds.includes(firstString(proof?.kind) ?? '')) {
+    reasonCodes.push('source-bound-runtime-proof-kind-invalid');
+  }
+  if ((firstString(proof?.status) ?? '') !== 'passed') {
+    reasonCodes.push('source-bound-runtime-proof-not-passed');
+  }
+  if (options.sourcePath !== undefined && firstString(proof?.sourcePath) !== options.sourcePath) {
+    reasonCodes.push('source-bound-runtime-proof-source-path-mismatch');
+  }
+
+  const requiredSourceRoles = options.requiredSourceRoles ?? [];
+  for (const role of requiredSourceRoles) {
+    if (!sourceHashes[role]) reasonCodes.push('source-bound-runtime-proof-source-hash-missing');
+  }
+  const expectedSourceHashes = options.sourceHashes ?? {};
+  for (const role of FRONTIER_RUNTIME_PROOF_SOURCE_ROLES) {
+    const expected = expectedSourceHashes[role];
+    if (expected === undefined) continue;
+    if (!sourceHashes[role]) reasonCodes.push('source-bound-runtime-proof-source-hash-missing');
+    else if (sourceHashes[role] !== expected) reasonCodes.push('source-bound-runtime-proof-source-hash-mismatch');
+  }
+
+  const expectedReasons = optionStrings(options.reasonCode);
+  if (expectedReasons.length > 0 && !coversAny(firstString(proof?.reasonCode), stringArray(proof?.reasonCodes), expectedReasons)) {
+    reasonCodes.push('source-bound-runtime-proof-reason-mismatch');
+  }
+
+  const expectedBoundaries = optionStrings(options.boundaryKey);
+  if (expectedBoundaries.length > 0 && !coversAny(firstString(proof?.boundaryKey), stringArray(proof?.boundaryKeys), expectedBoundaries)) {
+    reasonCodes.push('source-bound-runtime-proof-boundary-mismatch');
+  }
+
+  const expectedRecords = optionStrings(options.recordKey);
+  if (expectedRecords.length > 0 && !coversAny(firstString(proof?.recordKey), stringArray(proof?.recordKeys), expectedRecords)) {
+    reasonCodes.push('source-bound-runtime-proof-record-mismatch');
+  }
+
+  if (options.rejectBroadClaims !== false && hasBroadEquivalenceClaim(proof)) {
+    reasonCodes.push('source-bound-runtime-proof-broad-claim-present');
+  }
+
+  const uniqueReasonCodes = uniqueStrings(reasonCodes) as FrontierRuntimeProofReasonCode[];
+  if (uniqueReasonCodes.length > 0 || !metadataValidation.ok) {
+    return {
+      ok: false,
+      reasonCodes: uniqueReasonCodes,
+      metadataValidation,
+      sourceHashes
+    };
+  }
+
+  return {
+    ok: true,
+    proof: proof as FrontierSourceBoundRuntimeProof | UnknownRecord,
+    metadata: metadataValidation.metadata,
+    sourceHashes
+  };
+}
+
 export function stableRuntimeProofJson(value: unknown): string {
   if (value === null || typeof value !== 'object') {
     const serialized = JSON.stringify(value);
@@ -421,6 +739,72 @@ function looksLikeRuntimeProofCapsule(record: UnknownRecord): boolean {
     record.capsuleHash !== undefined;
 }
 
+function sourceHashForRole(
+  record: UnknownRecord,
+  role: FrontierRuntimeProofSourceRole,
+  sourceTextHash?: (sourceText: string) => string
+): string | undefined {
+  const directHashFields = role === 'output'
+    ? ['outputSourceHash', 'mergedSourceHash']
+    : [`${role}SourceHash`];
+  for (const field of directHashFields) {
+    const value = firstString(record[field]);
+    if (value) return value;
+  }
+
+  const aliases = sourceRoleAliases(role);
+  const sourceHashes = asRecord(record.sourceHashes);
+  const hashes = asRecord(record.hashes);
+  for (const alias of aliases) {
+    const value = firstString(sourceHashes?.[alias], hashes?.[alias]);
+    if (value) return value;
+  }
+
+  if (!sourceTextHash) return undefined;
+  const sourceTexts = asRecord(record.sourceTexts);
+  const sources = asRecord(record.sources);
+  const directTextFields = role === 'output'
+    ? ['outputSourceText', 'mergedSourceText', 'output', 'merged']
+    : [`${role}SourceText`, role];
+  for (const field of directTextFields) {
+    const value = firstSourceString(record[field]);
+    if (value !== undefined) return sourceTextHash(value);
+  }
+  for (const alias of aliases) {
+    const value = firstSourceString(sourceTexts?.[alias], sources?.[alias]);
+    if (value !== undefined) return sourceTextHash(value);
+  }
+  return undefined;
+}
+
+function sourceRoleAliases(role: FrontierRuntimeProofSourceRole): string[] {
+  return role === 'output' ? ['output', 'merged'] : [role];
+}
+
+function optionStrings(value: string | readonly string[] | undefined): string[] {
+  if (typeof value === 'string' && value.length > 0) return [value];
+  if (Array.isArray(value)) return uniqueStrings(value);
+  return [];
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string' && item.length > 0) : [];
+}
+
+function coversAny(value: string | undefined, values: readonly string[], expected: readonly string[]): boolean {
+  return expected.some((item) => value === item || values.includes(item));
+}
+
+function hasBroadEquivalenceClaim(record: UnknownRecord | undefined): boolean {
+  if (!record) return false;
+  return record.autoMergeClaim === true ||
+    record.semanticEquivalenceClaim === true ||
+    record.runtimeEquivalenceClaim === true ||
+    record.renderEquivalenceClaim === true ||
+    record.browserRuntimeEquivalenceClaim === true ||
+    record.browserRenderEquivalenceClaim === true;
+}
+
 function invalidCapsule(
   reasonCode: FrontierRuntimeProofReasonCode,
   reason: string,
@@ -472,6 +856,10 @@ function firstObject(...values: unknown[]): UnknownRecord | undefined {
 
 function firstString(...values: unknown[]): string | undefined {
   return values.find((value): value is string => typeof value === 'string' && value.length > 0);
+}
+
+function firstSourceString(...values: unknown[]): string | undefined {
+  return values.find((value): value is string => typeof value === 'string');
 }
 
 function firstNumber(...values: unknown[]): number | undefined {
