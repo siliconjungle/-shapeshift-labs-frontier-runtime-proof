@@ -2,7 +2,7 @@
 
 Runtime-neutral proof capsule, telemetry, and admission primitives for Frontier merge and review evidence.
 
-`frontier-runtime-proof` does not launch browsers, run Playwright, read files, inspect Git, or decide whether code is semantically equivalent. It defines the small evidence contract that higher packages can use after a runtime probe has already run: what fixture mode was used, which command/probe produced the evidence, which source-bound signals were observed, and which telemetry artifacts make the proof reviewable.
+The root `frontier-runtime-proof` import does not launch browsers, run Playwright, read files, inspect Git, or decide whether code is semantically equivalent. It defines the small evidence contract that higher packages can use after a runtime probe has already run: what fixture mode was used, which command/probe produced the evidence, which source-bound signals were observed, and which telemetry artifacts make the proof reviewable. The optional `./playwright` subpath can turn an already-owned Playwright `page` into that capsule without adding Playwright to the root dependency graph.
 
 ## Install
 
@@ -66,3 +66,29 @@ The return value is machine-checkable. Missing commands, probes, evidence hashes
 ## Boundary
 
 This package owns only the runtime-neutral proof record and admission helpers. Browser execution belongs in adapters such as Playwright harnesses, app-specific test runners, or coordinator packages. Semantic merge packages can depend on this package without importing browser automation or app runtime code.
+
+## Optional Playwright Helper
+
+The root import stays runtime-neutral. The optional `./playwright` subpath accepts a Playwright-compatible `page` object structurally, so Playwright remains an app/test-runner dependency rather than a root package dependency.
+
+```js
+import { capturePlaywrightRuntimeProof } from '@shapeshift-labs/frontier-runtime-proof/playwright';
+
+const proof = await capturePlaywrightRuntimeProof(page, {
+  mode: 'isolated-fixture',
+  command: 'playwright test runtime-proof.spec.ts',
+  probeId: 'html-css:runtime-proof:#root',
+  signals: ['html-css-browser-runtime'],
+  sourcePath: 'src/view.html',
+  sourceHash: 'source-hash',
+  cssHash: 'css-hash',
+  selectors: ['#root'],
+  screenshot: true,
+  maxCumulativeLayoutShift: 0.01,
+  async exercise(page) {
+    await page.getByRole('button', { name: 'Save' }).click();
+  }
+});
+```
+
+The helper installs bounded event and layout-shift probes, captures DOM, computed-style, layout, event-trace, optional screenshot, browser, viewport, and telemetry hashes, then returns a normal `runtimeProofCapsule`. If the page cannot be prepared or captured, it returns an `environment-blocked` proof that fails closed.

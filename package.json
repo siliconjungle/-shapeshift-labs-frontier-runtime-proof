@@ -1,6 +1,6 @@
 {
   "name": "@shapeshift-labs/frontier-runtime-proof",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Runtime-neutral proof capsule, telemetry, and admission primitives for Frontier merge and review evidence.",
   "type": "module",
   "license": "MIT",
@@ -20,6 +20,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./playwright": {
+      "types": "./dist/playwright.d.ts",
+      "import": "./dist/playwright.js",
+      "default": "./dist/playwright.js"
     },
     "./package.json": "./package.json"
   },

@@ -8,6 +8,10 @@ import {
   stableRuntimeProofJson,
   validateRuntimeProofEvidence
 } from '../dist/index.js';
+import {
+  capturePlaywrightRuntimeProof,
+  createEnvironmentBlockedPlaywrightRuntimeProof
+} from '../dist/playwright.js';
 
 const proof = {
   kind: 'html-source-bound-runtime-boundary-proof',
@@ -130,5 +134,95 @@ assert.equal(
   hashRuntimeProofValue({ a: 1, b: 2 }),
   hashRuntimeProofValue({ b: 2, a: 1 })
 );
+
+const fakePage = {
+  viewportSize() {
+    return { width: 800, height: 600 };
+  },
+  context() {
+    return {
+      browser() {
+        return {
+          version() {
+            return 'stable';
+          },
+          browserType() {
+            return {
+              name() {
+                return 'chromium';
+              }
+            };
+          }
+        };
+      }
+    };
+  },
+  async screenshot() {
+    return new Uint8Array([1, 2, 3, 4]);
+  },
+  async evaluate(_pageFunction, arg) {
+    if (arg?.traceKind === 'frontier.runtime-proof.playwright.trace.v1') return undefined;
+    assert.equal(arg.captureKind, 'frontier.runtime-proof.playwright.capture.v1');
+    assert.deepEqual(arg.selectors, ['#root']);
+    return {
+      environment: {
+        viewport: { width: 800, height: 600 },
+        deviceScaleFactor: 1,
+        colorScheme: 'light',
+        reducedMotion: 'no-preference'
+      },
+      domSnapshot: [{ path: '#root', tag: 'main', attributes: [['id', 'root']] }],
+      computedStyleSnapshot: [{ path: '#root', properties: { display: 'block', color: 'rgb(0, 0, 0)' } }],
+      layoutSnapshot: [{ path: '#root', rect: { x: 0, y: 0, width: 320, height: 120 } }],
+      eventTrace: [{ sequence: 0, type: 'click', target: '#root' }],
+      layoutShift: { cumulativeLayoutShift: 0, entries: [] }
+    };
+  }
+};
+
+const playwrightProof = await capturePlaywrightRuntimeProof(fakePage, {
+  mode: 'isolated-fixture',
+  command: 'playwright test runtime-proof.spec.ts',
+  probeId: 'html-css:runtime-proof:#root',
+  signals: ['html-css-browser-runtime'],
+  sourcePath: 'src/view.html',
+  sourceHash: 'source-hash',
+  cssHash: 'css-hash',
+  selectors: ['#root'],
+  screenshot: true,
+  maxCumulativeLayoutShift: 0.01
+});
+assert.equal(playwrightProof.status, 'passed');
+assert.equal(playwrightProof.runtimeProofCapsule.mode, 'isolated-fixture');
+assert.equal(playwrightProof.runtimeProofCapsule.browserName, 'chromium');
+assert.equal(playwrightProof.runtimeProofCapsule.viewport.width, 800);
+assert.equal(playwrightProof.runtimeProofCapsule.telemetryHash.startsWith('fnv1a32:'), true);
+assert.equal(playwrightProof.runtimeProofCapsule.domSnapshotHash.startsWith('fnv1a32:'), true);
+assert.equal(playwrightProof.runtimeProofCapsule.computedStyleHash.startsWith('fnv1a32:'), true);
+assert.equal(playwrightProof.runtimeProofCapsule.layoutSnapshotHash.startsWith('fnv1a32:'), true);
+assert.equal(playwrightProof.runtimeProofCapsule.eventTraceHash.startsWith('fnv1a32:'), true);
+assert.equal(playwrightProof.runtimeProofCapsule.screenshotHash.startsWith('fnv1a32:'), true);
+assert.equal(playwrightProof.validation.ok, true);
+
+const blockedPlaywrightProof = await capturePlaywrightRuntimeProof({
+  async evaluate() {
+    throw new Error('login wall');
+  }
+}, {
+  command: 'playwright test runtime-proof.spec.ts',
+  probeId: 'html-css:runtime-proof:blocked',
+  signals: ['html-css-browser-runtime']
+});
+assert.equal(blockedPlaywrightProof.status, 'blocked');
+assert.equal(blockedPlaywrightProof.validation.ok, false);
+assert.equal(blockedPlaywrightProof.validation.reasonCodes.includes('runtime-proof-environment-blocked'), true);
+
+const directBlockedProof = createEnvironmentBlockedPlaywrightRuntimeProof({
+  command: 'playwright test runtime-proof.spec.ts',
+  probeId: 'html-css:runtime-proof:blocked-direct',
+  signals: ['html-css-browser-runtime']
+}, new Error('fixture setup failed'));
+assert.equal(directBlockedProof.status, 'blocked');
+assert.equal(directBlockedProof.error.message, 'fixture setup failed');
 
 console.log('frontier runtime proof smoke passed');
