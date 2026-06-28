@@ -24,7 +24,9 @@ A runtime proof capsule is a normalized record around a runtime check:
 
 ```js
 import {
+  createRuntimeProofProbeSpec,
   runtimeEvidenceMetadataFromProof,
+  validateRuntimeProofAgainstProbe,
   validateRuntimeProofEvidence
 } from '@shapeshift-labs/frontier-runtime-proof';
 
@@ -101,6 +103,46 @@ const admission = validateSourceBoundRuntimeProof(sourceProof, {
 ```
 
 The proof object keeps `autoMergeClaim`, `semanticEquivalenceClaim`, `runtimeEquivalenceClaim`, `renderEquivalenceClaim`, `browserRuntimeEquivalenceClaim`, and `browserRenderEquivalenceClaim` false. Downstream merge packages can admit a specific boundary after checking the source hashes, reason code, boundary key, runtime signals, and telemetry constraints.
+
+## Probe Specs
+
+Runtime proof callers should declare what they need before they inspect a proof. A probe spec is a small reusable admission contract for one source boundary.
+
+```js
+import {
+  createRuntimeProofProbeSpec,
+  validateRuntimeProofAgainstProbe
+} from '@shapeshift-labs/frontier-runtime-proof';
+
+const probe = createRuntimeProofProbeSpec({
+  id: 'html-event-handler-runtime-probe',
+  mode: 'isolated-fixture',
+  command: 'playwright test runtime-proof.spec.ts',
+  probeId: 'html:event-handler-runtime-boundary:onclick',
+  sourcePath: 'src/view.html',
+  reasonCode: 'html-event-handler-runtime-boundary',
+  boundaryKey: 'button:onClick',
+  requiredSignals: ['html-event-handler-runtime'],
+  requiredSourceRoles: ['base', 'worker', 'head', 'output'],
+  sourceHashes: {
+    base: 'source:base',
+    worker: 'source:worker',
+    head: 'source:head',
+    output: 'source:output'
+  },
+  requireTelemetryHash: true,
+  requireDomSnapshotHash: true,
+  requireComputedStyleHash: true,
+  requireLayoutSnapshotHash: true,
+  requireEventTraceHash: true,
+  maxCumulativeLayoutShift: 0.01,
+  requireSourceBoundProof: true
+});
+
+const result = validateRuntimeProofAgainstProbe(sourceProof, probe);
+```
+
+The result fails closed with explicit reason codes for stale source hashes, wrong probe ids, missing telemetry hashes, blocked environments, excessive layout shift, and broad self-claims such as "browser runtime equivalence."
 
 ## Boundary
 

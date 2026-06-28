@@ -1,9 +1,11 @@
 import assert from 'node:assert';
 import {
   FRONTIER_RUNTIME_PROOF_MODES,
+  createRuntimeProofProbeSpec,
   createSourceBoundRuntimeProof,
   hashRuntimeProofValue,
   stableRuntimeProofJson,
+  validateRuntimeProofAgainstProbe,
   validateSourceBoundRuntimeProof,
   validateRuntimeProofEvidence
 } from '../dist/index.js';
@@ -74,6 +76,21 @@ for (let run = 0; run < cases; run++) {
     }, {
       maxCumulativeLayoutShift: 0.1
     });
+    const probeSpec = createRuntimeProofProbeSpec({
+      id: `probe-${run}`,
+      mode,
+      sourcePath: `src/view-${run}.html`,
+      reasonCode: requiredSignal,
+      requiredSignals: [requiredSignal],
+      requiredSourceRoles: ['base', 'worker', 'head', 'output'],
+      sourceHashes,
+      requireTelemetryHash: true,
+      maxCumulativeLayoutShift: 0.1,
+      requireSourceBoundProof: true
+    });
+    const probeValidation = validateRuntimeProofAgainstProbe(sourceBoundProof, probeSpec);
+    assert.equal(probeValidation.ok, true, `probe validation mismatch for run ${run}`);
+
     const staleSourceHash = random() < 0.2;
     const broadClaim = random() < 0.2;
     const sourceValidation = validateSourceBoundRuntimeProof({

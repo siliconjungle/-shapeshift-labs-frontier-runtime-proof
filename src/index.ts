@@ -2,6 +2,8 @@ export const FRONTIER_RUNTIME_PROOF_CAPSULE_KIND = 'frontier.runtime-proof.capsu
 export const FRONTIER_RUNTIME_PROOF_CAPSULE_VERSION = 1;
 export const FRONTIER_RUNTIME_PROOF_EVIDENCE_KIND = 'frontier.runtime-proof.evidence';
 export const FRONTIER_RUNTIME_PROOF_EVIDENCE_VERSION = 1;
+export const FRONTIER_RUNTIME_PROOF_PROBE_SPEC_KIND = 'frontier.runtime-proof.probe-spec';
+export const FRONTIER_RUNTIME_PROOF_PROBE_SPEC_VERSION = 1;
 export const FRONTIER_SOURCE_BOUND_RUNTIME_PROOF_KIND = 'frontier.runtime-proof.source-bound-proof';
 export const FRONTIER_SOURCE_BOUND_RUNTIME_PROOF_VERSION = 1;
 
@@ -38,6 +40,17 @@ export type FrontierRuntimeProofReasonCode =
   | 'runtime-proof-capsule-missing'
   | 'runtime-proof-telemetry-hash-missing'
   | 'runtime-proof-cumulative-layout-shift-exceeded'
+  | 'runtime-proof-probe-spec-id-missing'
+  | 'runtime-proof-mode-mismatch'
+  | 'runtime-proof-command-mismatch'
+  | 'runtime-proof-probe-id-mismatch'
+  | 'runtime-proof-dom-snapshot-hash-missing'
+  | 'runtime-proof-computed-style-hash-missing'
+  | 'runtime-proof-layout-snapshot-hash-missing'
+  | 'runtime-proof-event-trace-hash-missing'
+  | 'runtime-proof-layout-shift-hash-missing'
+  | 'runtime-proof-screenshot-hash-missing'
+  | 'runtime-proof-source-bound-proof-required'
   | 'source-bound-runtime-proof-kind-invalid'
   | 'source-bound-runtime-proof-not-passed'
   | 'source-bound-runtime-proof-source-path-mismatch'
@@ -315,6 +328,93 @@ export type FrontierRuntimeProofValidation =
     requiredSignals: string[];
   };
 
+export interface FrontierRuntimeProofTelemetryRequirements {
+  requireTelemetryHash?: boolean;
+  requireDomSnapshotHash?: boolean;
+  requireComputedStyleHash?: boolean;
+  requireLayoutSnapshotHash?: boolean;
+  requireEventTraceHash?: boolean;
+  requireLayoutShiftHash?: boolean;
+  requireScreenshotHash?: boolean;
+  maxCumulativeLayoutShift?: number;
+}
+
+export interface FrontierRuntimeProofTelemetrySummary {
+  kind: 'frontier.runtime-proof.telemetry-summary';
+  version: 1;
+  hasTelemetryHash: boolean;
+  hasDomSnapshotHash: boolean;
+  hasComputedStyleHash: boolean;
+  hasLayoutSnapshotHash: boolean;
+  hasEventTraceHash: boolean;
+  hasLayoutShiftHash: boolean;
+  hasScreenshotHash: boolean;
+  telemetryHash?: string;
+  domSnapshotHash?: string;
+  computedStyleHash?: string;
+  layoutSnapshotHash?: string;
+  eventTraceHash?: string;
+  layoutShiftHash?: string;
+  screenshotHash?: string;
+  cumulativeLayoutShift?: number;
+  hash: string;
+}
+
+export interface FrontierRuntimeProofProbeSpecInput extends FrontierRuntimeProofTelemetryRequirements {
+  id?: string;
+  mode?: FrontierRuntimeProofMode;
+  command?: string;
+  probeId?: string;
+  sourcePath?: string;
+  reasonCode?: string | readonly string[];
+  boundaryKey?: string | readonly string[];
+  recordKey?: string | readonly string[];
+  requiredSignals?: readonly string[];
+  requiredSourceRoles?: readonly FrontierRuntimeProofSourceRole[];
+  sourceHashes?: FrontierRuntimeProofSourceHashes;
+  requireRuntimeProofCapsule?: boolean;
+  requireSourceBoundProof?: boolean;
+  rejectBroadClaims?: boolean;
+  hash?: string;
+}
+
+export interface FrontierRuntimeProofProbeSpec extends FrontierRuntimeProofTelemetryRequirements {
+  kind: typeof FRONTIER_RUNTIME_PROOF_PROBE_SPEC_KIND;
+  version: typeof FRONTIER_RUNTIME_PROOF_PROBE_SPEC_VERSION;
+  id: string;
+  mode?: FrontierRuntimeProofMode;
+  command?: string;
+  probeId?: string;
+  sourcePath?: string;
+  reasonCode?: string | readonly string[];
+  boundaryKey?: string | readonly string[];
+  recordKey?: string | readonly string[];
+  requiredSignals: string[];
+  requiredSourceRoles: FrontierRuntimeProofSourceRole[];
+  sourceHashes?: FrontierRuntimeProofSourceHashes;
+  requireRuntimeProofCapsule: boolean;
+  requireSourceBoundProof: boolean;
+  rejectBroadClaims: boolean;
+  hash: string;
+}
+
+export type FrontierRuntimeProofProbeValidation =
+  | {
+    ok: true;
+    probe: FrontierRuntimeProofProbeSpec;
+    metadata: FrontierRuntimeEvidenceMetadata;
+    telemetry: FrontierRuntimeProofTelemetrySummary;
+    sourceBoundValidation?: FrontierSourceBoundRuntimeProofValidation;
+  }
+  | {
+    ok: false;
+    probe: FrontierRuntimeProofProbeSpec;
+    reasonCodes: FrontierRuntimeProofReasonCode[];
+    metadataValidation: FrontierRuntimeProofValidation;
+    telemetry: FrontierRuntimeProofTelemetrySummary;
+    sourceBoundValidation?: FrontierSourceBoundRuntimeProofValidation;
+  };
+
 type UnknownRecord = Record<string, unknown>;
 
 const runtimeProofModes = new Set<string>(FRONTIER_RUNTIME_PROOF_MODES);
@@ -514,6 +614,142 @@ export function validateRuntimeProofEvidence(
       requiredSignals,
       capsule: normalizedCapsule
     }) as unknown as FrontierRuntimeEvidenceMetadata
+  };
+}
+
+export function createRuntimeProofProbeSpec(input: FrontierRuntimeProofProbeSpecInput): FrontierRuntimeProofProbeSpec {
+  const id = firstString(input.id);
+  if (!id) throw new Error('runtime proof probe spec id is missing');
+
+  const spec = compactRecord({
+    kind: FRONTIER_RUNTIME_PROOF_PROBE_SPEC_KIND,
+    version: FRONTIER_RUNTIME_PROOF_PROBE_SPEC_VERSION,
+    id,
+    mode: input.mode,
+    command: input.command,
+    probeId: input.probeId,
+    sourcePath: input.sourcePath,
+    reasonCode: input.reasonCode,
+    boundaryKey: input.boundaryKey,
+    recordKey: input.recordKey,
+    requiredSignals: uniqueStrings(input.requiredSignals ?? []),
+    requiredSourceRoles: uniqueRuntimeProofSourceRoles(input.requiredSourceRoles ?? []),
+    sourceHashes: input.sourceHashes,
+    requireRuntimeProofCapsule: input.requireRuntimeProofCapsule ?? true,
+    requireSourceBoundProof: input.requireSourceBoundProof ?? false,
+    rejectBroadClaims: input.rejectBroadClaims ?? true,
+    requireTelemetryHash: input.requireTelemetryHash ?? false,
+    requireDomSnapshotHash: input.requireDomSnapshotHash ?? false,
+    requireComputedStyleHash: input.requireComputedStyleHash ?? false,
+    requireLayoutSnapshotHash: input.requireLayoutSnapshotHash ?? false,
+    requireEventTraceHash: input.requireEventTraceHash ?? false,
+    requireLayoutShiftHash: input.requireLayoutShiftHash ?? false,
+    requireScreenshotHash: input.requireScreenshotHash ?? false,
+    maxCumulativeLayoutShift: input.maxCumulativeLayoutShift
+  }) as Omit<FrontierRuntimeProofProbeSpec, 'hash'>;
+
+  return {
+    ...spec,
+    hash: input.hash ?? hashRuntimeProofValue({ ...spec, fingerprintKind: 'frontier.runtime-proof.probe-spec.fingerprint.v1' })
+  };
+}
+
+export function runtimeProofTelemetrySummary(input: unknown): FrontierRuntimeProofTelemetrySummary {
+  const capsule = normalizeRuntimeProofCapsule(input);
+  const normalizedCapsule = capsule && capsule.valid === true ? capsule : undefined;
+  const summary = compactRecord({
+    kind: 'frontier.runtime-proof.telemetry-summary' as const,
+    version: 1 as const,
+    hasTelemetryHash: Boolean(normalizedCapsule?.telemetryHash),
+    hasDomSnapshotHash: Boolean(normalizedCapsule?.domSnapshotHash),
+    hasComputedStyleHash: Boolean(normalizedCapsule?.computedStyleHash),
+    hasLayoutSnapshotHash: Boolean(normalizedCapsule?.layoutSnapshotHash),
+    hasEventTraceHash: Boolean(normalizedCapsule?.eventTraceHash),
+    hasLayoutShiftHash: Boolean(normalizedCapsule?.layoutShiftHash),
+    hasScreenshotHash: Boolean(normalizedCapsule?.screenshotHash),
+    telemetryHash: normalizedCapsule?.telemetryHash,
+    domSnapshotHash: normalizedCapsule?.domSnapshotHash,
+    computedStyleHash: normalizedCapsule?.computedStyleHash,
+    layoutSnapshotHash: normalizedCapsule?.layoutSnapshotHash,
+    eventTraceHash: normalizedCapsule?.eventTraceHash,
+    layoutShiftHash: normalizedCapsule?.layoutShiftHash,
+    screenshotHash: normalizedCapsule?.screenshotHash,
+    cumulativeLayoutShift: normalizedCapsule?.cumulativeLayoutShift
+  }) as Omit<FrontierRuntimeProofTelemetrySummary, 'hash'>;
+
+  return {
+    ...summary,
+    hash: hashRuntimeProofValue({ ...summary, fingerprintKind: 'frontier.runtime-proof.telemetry-summary.fingerprint.v1' })
+  };
+}
+
+export function validateRuntimeProofAgainstProbe(
+  input: unknown,
+  probeInput: FrontierRuntimeProofProbeSpec | FrontierRuntimeProofProbeSpecInput
+): FrontierRuntimeProofProbeValidation {
+  const probe = isRuntimeProofProbeSpec(probeInput)
+    ? probeInput
+    : createRuntimeProofProbeSpec(probeInput);
+  const metadataValidation = validateRuntimeProofEvidence(input, {
+    requiredSignals: probe.requiredSignals,
+    requireRuntimeProofCapsule: probe.requireRuntimeProofCapsule,
+    requireTelemetryHash: probe.requireTelemetryHash,
+    maxCumulativeLayoutShift: probe.maxCumulativeLayoutShift
+  });
+  const telemetry = runtimeProofTelemetrySummary(input);
+  const reasonCodes: FrontierRuntimeProofReasonCode[] = metadataValidation.ok
+    ? []
+    : [...metadataValidation.reasonCodes];
+
+  const metadata = metadataValidation.ok ? metadataValidation.metadata : undefined;
+  const capsule = metadata?.capsule;
+  if (probe.mode && capsule?.mode !== probe.mode) reasonCodes.push('runtime-proof-mode-mismatch');
+  if (probe.command && metadata?.command !== probe.command) reasonCodes.push('runtime-proof-command-mismatch');
+  if (probe.probeId && metadata?.probeId !== probe.probeId) reasonCodes.push('runtime-proof-probe-id-mismatch');
+  addTelemetryRequirementReasonCodes(reasonCodes, probe, telemetry);
+
+  let sourceBoundValidation: FrontierSourceBoundRuntimeProofValidation | undefined;
+  if (probeRequiresSourceBoundValidation(probe)) {
+    sourceBoundValidation = validateSourceBoundRuntimeProof(input, {
+      sourcePath: probe.sourcePath,
+      reasonCode: probe.reasonCode,
+      boundaryKey: probe.boundaryKey,
+      recordKey: probe.recordKey,
+      sourceHashes: probe.sourceHashes,
+      requiredSourceRoles: probe.requiredSourceRoles,
+      requiredSignals: probe.requiredSignals,
+      requireRuntimeProofCapsule: probe.requireRuntimeProofCapsule,
+      requireTelemetryHash: probe.requireTelemetryHash,
+      maxCumulativeLayoutShift: probe.maxCumulativeLayoutShift,
+      rejectBroadClaims: probe.rejectBroadClaims
+    });
+    if (!sourceBoundValidation.ok) reasonCodes.push(...sourceBoundValidation.reasonCodes);
+    if (
+      probe.requireSourceBoundProof &&
+      asRecord(input)?.kind !== FRONTIER_SOURCE_BOUND_RUNTIME_PROOF_KIND
+    ) {
+      reasonCodes.push('runtime-proof-source-bound-proof-required');
+    }
+  }
+
+  const uniqueReasonCodes = uniqueStrings(reasonCodes) as FrontierRuntimeProofReasonCode[];
+  if (!metadataValidation.ok || uniqueReasonCodes.length > 0 || !metadata) {
+    return {
+      ok: false,
+      probe,
+      reasonCodes: uniqueReasonCodes,
+      metadataValidation,
+      telemetry,
+      sourceBoundValidation
+    };
+  }
+
+  return {
+    ok: true,
+    probe,
+    metadata,
+    telemetry,
+    sourceBoundValidation
   };
 }
 
@@ -803,6 +1039,39 @@ function hasBroadEquivalenceClaim(record: UnknownRecord | undefined): boolean {
     record.renderEquivalenceClaim === true ||
     record.browserRuntimeEquivalenceClaim === true ||
     record.browserRenderEquivalenceClaim === true;
+}
+
+function addTelemetryRequirementReasonCodes(
+  reasonCodes: FrontierRuntimeProofReasonCode[],
+  requirements: FrontierRuntimeProofTelemetryRequirements,
+  telemetry: FrontierRuntimeProofTelemetrySummary
+): void {
+  if (requirements.requireDomSnapshotHash && !telemetry.hasDomSnapshotHash) reasonCodes.push('runtime-proof-dom-snapshot-hash-missing');
+  if (requirements.requireComputedStyleHash && !telemetry.hasComputedStyleHash) reasonCodes.push('runtime-proof-computed-style-hash-missing');
+  if (requirements.requireLayoutSnapshotHash && !telemetry.hasLayoutSnapshotHash) reasonCodes.push('runtime-proof-layout-snapshot-hash-missing');
+  if (requirements.requireEventTraceHash && !telemetry.hasEventTraceHash) reasonCodes.push('runtime-proof-event-trace-hash-missing');
+  if (requirements.requireLayoutShiftHash && !telemetry.hasLayoutShiftHash) reasonCodes.push('runtime-proof-layout-shift-hash-missing');
+  if (requirements.requireScreenshotHash && !telemetry.hasScreenshotHash) reasonCodes.push('runtime-proof-screenshot-hash-missing');
+}
+
+function isRuntimeProofProbeSpec(value: FrontierRuntimeProofProbeSpec | FrontierRuntimeProofProbeSpecInput): value is FrontierRuntimeProofProbeSpec {
+  return asRecord(value)?.kind === FRONTIER_RUNTIME_PROOF_PROBE_SPEC_KIND;
+}
+
+function probeRequiresSourceBoundValidation(probe: FrontierRuntimeProofProbeSpec): boolean {
+  return probe.requireSourceBoundProof ||
+    probe.sourcePath !== undefined ||
+    optionStrings(probe.reasonCode).length > 0 ||
+    optionStrings(probe.boundaryKey).length > 0 ||
+    optionStrings(probe.recordKey).length > 0 ||
+    probe.requiredSourceRoles.length > 0 ||
+    probe.sourceHashes !== undefined;
+}
+
+function uniqueRuntimeProofSourceRoles(values: readonly FrontierRuntimeProofSourceRole[]): FrontierRuntimeProofSourceRole[] {
+  return [...new Set(values.filter((value): value is FrontierRuntimeProofSourceRole => {
+    return FRONTIER_RUNTIME_PROOF_SOURCE_ROLES.includes(value);
+  }))];
 }
 
 function invalidCapsule(

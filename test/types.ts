@@ -1,14 +1,20 @@
 import {
+  createRuntimeProofProbeSpec,
   createSourceBoundRuntimeProof,
   createRuntimeProofCapsule,
+  runtimeProofTelemetrySummary,
   runtimeProofSourceHashes,
   runtimeEvidenceMetadataFromProof,
+  validateRuntimeProofAgainstProbe,
   validateSourceBoundRuntimeProof,
   validateRuntimeProofEvidence,
   type FrontierRuntimeProofSourceHashes,
   type FrontierRuntimeEvidenceMetadata,
   type FrontierRuntimeProofCapsule,
   type FrontierRuntimeProofMode,
+  type FrontierRuntimeProofProbeSpec,
+  type FrontierRuntimeProofProbeValidation,
+  type FrontierRuntimeProofTelemetrySummary,
   type FrontierRuntimeProofValidation,
   type FrontierSourceBoundRuntimeProof
 } from '../dist/index.js';
@@ -67,6 +73,28 @@ const sourceBoundValidation = validateSourceBoundRuntimeProof(sourceBoundProof, 
 if (sourceBoundValidation.ok) {
   sourceBoundValidation.metadata.probeId satisfies string;
   sourceBoundValidation.sourceHashes.output satisfies string | undefined;
+}
+
+const telemetry: FrontierRuntimeProofTelemetrySummary = runtimeProofTelemetrySummary(sourceBoundProof);
+telemetry.hasEventTraceHash satisfies boolean;
+
+const probeSpec: FrontierRuntimeProofProbeSpec = createRuntimeProofProbeSpec({
+  id: 'probe',
+  mode: 'isolated-fixture',
+  sourcePath: 'src/view.html',
+  reasonCode: 'html-event-handler-runtime-boundary',
+  boundaryKey: 'button:onClick',
+  requiredSignals: ['html-event-handler-runtime'],
+  requiredSourceRoles: ['base', 'worker', 'head', 'output'],
+  sourceHashes,
+  requireTelemetryHash: false,
+  requireSourceBoundProof: true
+});
+
+const probeValidation: FrontierRuntimeProofProbeValidation = validateRuntimeProofAgainstProbe(sourceBoundProof, probeSpec);
+if (probeValidation.ok) {
+  probeValidation.probe.hash satisfies string;
+  probeValidation.telemetry.hash satisfies string;
 }
 
 const page: FrontierPlaywrightLikePage = {

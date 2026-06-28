@@ -1,6 +1,7 @@
 import assert from 'node:assert';
 import {
   FRONTIER_SOURCE_BOUND_RUNTIME_PROOF_KIND,
+  createRuntimeProofProbeSpec,
   createSourceBoundRuntimeProof,
   createRuntimeProofCapsule,
   hashRuntimeProofValue,
@@ -8,7 +9,9 @@ import {
   runtimeEvidenceMetadataFromProof,
   runtimeProofSourceHashes,
   runtimeProofSignals,
+  runtimeProofTelemetrySummary,
   stableRuntimeProofJson,
+  validateRuntimeProofAgainstProbe,
   validateSourceBoundRuntimeProof,
   validateRuntimeProofEvidence
 } from '../dist/index.js';
@@ -117,6 +120,62 @@ const sourceBoundValidation = validateSourceBoundRuntimeProof(sourceBoundProof, 
 });
 assert.equal(sourceBoundValidation.ok, true);
 assert.deepEqual(sourceBoundValidation.sourceHashes, sourceHashes);
+
+const telemetrySummary = runtimeProofTelemetrySummary(sourceBoundProof);
+assert.equal(telemetrySummary.hasTelemetryHash, true);
+assert.equal(telemetrySummary.hasDomSnapshotHash, true);
+assert.equal(telemetrySummary.hasComputedStyleHash, true);
+assert.equal(telemetrySummary.hasLayoutSnapshotHash, true);
+assert.equal(telemetrySummary.hasEventTraceHash, true);
+assert.equal(telemetrySummary.hasScreenshotHash, true);
+assert.equal(telemetrySummary.cumulativeLayoutShift, 0);
+assert.equal(typeof telemetrySummary.hash, 'string');
+
+const probeSpec = createRuntimeProofProbeSpec({
+  id: 'html-event-handler-runtime-probe',
+  mode: 'isolated-fixture',
+  command: 'playwright test runtime-proof.spec.ts',
+  probeId: 'html:event-handler-runtime-boundary:onclick',
+  sourcePath: 'src/view.html',
+  reasonCode: 'html-event-handler-runtime-boundary',
+  boundaryKey: 'button:onClick',
+  requiredSignals: ['html-event-handler-runtime'],
+  requiredSourceRoles: ['base', 'worker', 'head', 'output'],
+  sourceHashes,
+  requireTelemetryHash: true,
+  requireDomSnapshotHash: true,
+  requireComputedStyleHash: true,
+  requireLayoutSnapshotHash: true,
+  requireEventTraceHash: true,
+  requireScreenshotHash: true,
+  maxCumulativeLayoutShift: 0.01,
+  requireSourceBoundProof: true
+});
+assert.equal(probeSpec.kind, 'frontier.runtime-proof.probe-spec');
+assert.equal(probeSpec.requireRuntimeProofCapsule, true);
+assert.equal(typeof probeSpec.hash, 'string');
+
+const probeValidation = validateRuntimeProofAgainstProbe(sourceBoundProof, probeSpec);
+assert.equal(probeValidation.ok, true);
+assert.equal(probeValidation.telemetry.hasEventTraceHash, true);
+assert.equal(probeValidation.sourceBoundValidation.ok, true);
+
+const missingEventProbeValidation = validateRuntimeProofAgainstProbe({
+  ...sourceBoundProof,
+  runtimeProofCapsule: {
+    ...sourceBoundProof.runtimeProofCapsule,
+    eventTraceHash: undefined
+  }
+}, probeSpec);
+assert.equal(missingEventProbeValidation.ok, false);
+assert.equal(missingEventProbeValidation.reasonCodes.includes('runtime-proof-event-trace-hash-missing'), true);
+
+const wrongModeProbeValidation = validateRuntimeProofAgainstProbe(sourceBoundProof, {
+  ...probeSpec,
+  mode: 'full-app-replay'
+});
+assert.equal(wrongModeProbeValidation.ok, false);
+assert.equal(wrongModeProbeValidation.reasonCodes.includes('runtime-proof-mode-mismatch'), true);
 
 const staleSourceBoundValidation = validateSourceBoundRuntimeProof({
   ...sourceBoundProof,
