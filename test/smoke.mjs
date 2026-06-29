@@ -7,6 +7,7 @@ import {
   hashRuntimeProofValue,
   normalizeRuntimeProofCapsule,
   runtimeEvidenceMetadataFromProof,
+  runtimeProofBroadClaimFields,
   runtimeProofSourceHashes,
   runtimeProofSignals,
   runtimeProofTelemetrySummary,
@@ -227,6 +228,11 @@ const broadClaimValidation = validateSourceBoundRuntimeProof({
 });
 assert.equal(broadClaimValidation.ok, false);
 assert.equal(broadClaimValidation.reasonCodes.includes('source-bound-runtime-proof-broad-claim-present'), true);
+assert.deepEqual(runtimeProofBroadClaimFields({
+  browserRuntimeEquivalenceClaim: true,
+  runtimeProofCapsule: { renderEquivalenceClaim: true },
+  runtimeEvidence: { browserCascadeEquivalenceClaim: true }
+}), ['browserRuntimeEquivalenceClaim', 'runtimeProofCapsule.renderEquivalenceClaim', 'runtimeEvidence.browserCascadeEquivalenceClaim']);
 
 const nestedCapsuleBroadClaimValidation = validateSourceBoundRuntimeProof({
   ...sourceBoundProof,

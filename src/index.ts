@@ -1063,6 +1063,7 @@ const BROAD_EQUIVALENCE_CLAIM_FIELDS = [
   'runtimeEquivalenceClaim',
   'renderEquivalenceClaim',
   'browserRuntimeEquivalenceClaim',
+  'browserCascadeEquivalenceClaim',
   'browserRenderEquivalenceClaim'
 ] as const;
 
@@ -1076,14 +1077,30 @@ const BROAD_EQUIVALENCE_CLAIM_CONTAINER_FIELDS = [
   'capsule'
 ] as const;
 
+export function runtimeProofBroadClaimFields(input: unknown): string[] {
+  return broadEquivalenceClaimFields(asRecord(input));
+}
+
 function hasBroadEquivalenceClaim(record: UnknownRecord | undefined, seen = new Set<UnknownRecord>()): boolean {
-  if (!record) return false;
-  if (seen.has(record)) return false;
+  return broadEquivalenceClaimFields(record, '', seen).length > 0;
+}
+
+function broadEquivalenceClaimFields(
+  record: UnknownRecord | undefined,
+  prefix = '',
+  seen = new Set<UnknownRecord>()
+): string[] {
+  if (!record) return [];
+  if (seen.has(record)) return [];
   seen.add(record);
-  if (BROAD_EQUIVALENCE_CLAIM_FIELDS.some((field) => record[field] === true)) return true;
-  return BROAD_EQUIVALENCE_CLAIM_CONTAINER_FIELDS.some((field) => {
-    return hasBroadEquivalenceClaim(asRecord(record[field]), seen);
+  const direct = BROAD_EQUIVALENCE_CLAIM_FIELDS
+    .filter((field) => record[field] === true)
+    .map((field) => (prefix ? `${prefix}.${field}` : field));
+  const nested = BROAD_EQUIVALENCE_CLAIM_CONTAINER_FIELDS.flatMap((field) => {
+    const childPrefix = prefix ? `${prefix}.${field}` : field;
+    return broadEquivalenceClaimFields(asRecord(record[field]), childPrefix, seen);
   });
+  return [...direct, ...nested];
 }
 
 function addTelemetryRequirementReasonCodes(
