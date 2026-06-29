@@ -1057,14 +1057,33 @@ function coversAny(value: string | undefined, values: readonly string[], expecte
   return expected.some((item) => value === item || values.includes(item));
 }
 
-function hasBroadEquivalenceClaim(record: UnknownRecord | undefined): boolean {
+const BROAD_EQUIVALENCE_CLAIM_FIELDS = [
+  'autoMergeClaim',
+  'semanticEquivalenceClaim',
+  'runtimeEquivalenceClaim',
+  'renderEquivalenceClaim',
+  'browserRuntimeEquivalenceClaim',
+  'browserRenderEquivalenceClaim'
+] as const;
+
+const BROAD_EQUIVALENCE_CLAIM_CONTAINER_FIELDS = [
+  'runtimeProofCapsule',
+  'proofCapsule',
+  'fixtureCapsule',
+  'runtimeEvidence',
+  'browserEvidence',
+  'evidence',
+  'capsule'
+] as const;
+
+function hasBroadEquivalenceClaim(record: UnknownRecord | undefined, seen = new Set<UnknownRecord>()): boolean {
   if (!record) return false;
-  return record.autoMergeClaim === true ||
-    record.semanticEquivalenceClaim === true ||
-    record.runtimeEquivalenceClaim === true ||
-    record.renderEquivalenceClaim === true ||
-    record.browserRuntimeEquivalenceClaim === true ||
-    record.browserRenderEquivalenceClaim === true;
+  if (seen.has(record)) return false;
+  seen.add(record);
+  if (BROAD_EQUIVALENCE_CLAIM_FIELDS.some((field) => record[field] === true)) return true;
+  return BROAD_EQUIVALENCE_CLAIM_CONTAINER_FIELDS.some((field) => {
+    return hasBroadEquivalenceClaim(asRecord(record[field]), seen);
+  });
 }
 
 function addTelemetryRequirementReasonCodes(

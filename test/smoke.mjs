@@ -228,6 +228,32 @@ const broadClaimValidation = validateSourceBoundRuntimeProof({
 assert.equal(broadClaimValidation.ok, false);
 assert.equal(broadClaimValidation.reasonCodes.includes('source-bound-runtime-proof-broad-claim-present'), true);
 
+const nestedCapsuleBroadClaimValidation = validateSourceBoundRuntimeProof({
+  ...sourceBoundProof,
+  runtimeProofCapsule: {
+    ...sourceBoundProof.runtimeProofCapsule,
+    renderEquivalenceClaim: true
+  }
+}, {
+  sourceHashes,
+  requiredSignals: ['html-event-handler-runtime']
+});
+assert.equal(nestedCapsuleBroadClaimValidation.ok, false);
+assert.equal(nestedCapsuleBroadClaimValidation.reasonCodes.includes('source-bound-runtime-proof-broad-claim-present'), true);
+
+const nestedEvidenceBroadClaimValidation = validateSourceBoundRuntimeProof({
+  ...sourceBoundProof,
+  runtimeEvidence: {
+    semanticEquivalenceClaim: true,
+    capsule: sourceBoundProof.runtimeProofCapsule
+  }
+}, {
+  sourceHashes,
+  requiredSignals: ['html-event-handler-runtime']
+});
+assert.equal(nestedEvidenceBroadClaimValidation.ok, false);
+assert.equal(nestedEvidenceBroadClaimValidation.reasonCodes.includes('source-bound-runtime-proof-broad-claim-present'), true);
+
 const sourceTextHashes = runtimeProofSourceHashes({
   sourceTexts: { base: '<main />', worker: '<main data-worker />', head: '<main data-head />', output: '<main data-worker data-head />' }
 }, hashRuntimeProofValue);

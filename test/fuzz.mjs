@@ -93,11 +93,31 @@ for (let run = 0; run < cases; run++) {
 
     const staleSourceHash = random() < 0.2;
     const broadClaim = random() < 0.2;
-    const sourceValidation = validateSourceBoundRuntimeProof({
+    const broadClaimLocation = broadClaim
+      ? randomPick(['top-level', 'capsule', 'runtime-evidence', 'browser-evidence'])
+      : 'none';
+    const sourceBoundCandidate = {
       ...sourceBoundProof,
       outputSourceHash: staleSourceHash ? `stale-${run}` : sourceHashes.output,
-      autoMergeClaim: broadClaim
-    }, {
+      autoMergeClaim: broadClaimLocation === 'top-level'
+    };
+    if (broadClaimLocation === 'capsule') {
+      sourceBoundCandidate.runtimeProofCapsule = {
+        ...sourceBoundProof.runtimeProofCapsule,
+        renderEquivalenceClaim: true
+      };
+    } else if (broadClaimLocation === 'runtime-evidence') {
+      sourceBoundCandidate.runtimeEvidence = {
+        semanticEquivalenceClaim: true,
+        capsule: sourceBoundProof.runtimeProofCapsule
+      };
+    } else if (broadClaimLocation === 'browser-evidence') {
+      sourceBoundCandidate.browserEvidence = {
+        browserRenderEquivalenceClaim: true,
+        capsule: sourceBoundProof.runtimeProofCapsule
+      };
+    }
+    const sourceValidation = validateSourceBoundRuntimeProof(sourceBoundCandidate, {
       sourcePath: `src/view-${run}.html`,
       reasonCode: requiredSignal,
       sourceHashes,
