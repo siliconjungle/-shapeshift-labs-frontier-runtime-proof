@@ -40,6 +40,8 @@ const proof = {
       computedStyleHash: 'style-hash',
       layoutSnapshotHash: 'layout-hash',
       eventTraceHash: 'events-hash',
+      accessibilitySnapshotHash: 'accessibility-hash',
+      focusSnapshotHash: 'focus-hash',
       screenshotHash: 'screenshot-hash',
       cumulativeLayoutShift: 0
     }
@@ -58,6 +60,8 @@ assert.equal(capsule.domSnapshotHash, 'dom-hash');
 assert.equal(capsule.computedStyleHash, 'style-hash');
 assert.equal(capsule.layoutSnapshotHash, 'layout-hash');
 assert.equal(capsule.eventTraceHash, 'events-hash');
+assert.equal(capsule.accessibilitySnapshotHash, 'accessibility-hash');
+assert.equal(capsule.focusSnapshotHash, 'focus-hash');
 assert.equal(capsule.cumulativeLayoutShift, 0);
 assert.equal(typeof capsule.hash, 'string');
 
@@ -127,6 +131,8 @@ assert.equal(telemetrySummary.hasDomSnapshotHash, true);
 assert.equal(telemetrySummary.hasComputedStyleHash, true);
 assert.equal(telemetrySummary.hasLayoutSnapshotHash, true);
 assert.equal(telemetrySummary.hasEventTraceHash, true);
+assert.equal(telemetrySummary.hasAccessibilitySnapshotHash, true);
+assert.equal(telemetrySummary.hasFocusSnapshotHash, true);
 assert.equal(telemetrySummary.hasScreenshotHash, true);
 assert.equal(telemetrySummary.cumulativeLayoutShift, 0);
 assert.equal(typeof telemetrySummary.hash, 'string');
@@ -147,6 +153,8 @@ const probeSpec = createRuntimeProofProbeSpec({
   requireComputedStyleHash: true,
   requireLayoutSnapshotHash: true,
   requireEventTraceHash: true,
+  requireAccessibilitySnapshotHash: true,
+  requireFocusSnapshotHash: true,
   requireScreenshotHash: true,
   maxCumulativeLayoutShift: 0.01,
   requireSourceBoundProof: true
@@ -169,6 +177,26 @@ const missingEventProbeValidation = validateRuntimeProofAgainstProbe({
 }, probeSpec);
 assert.equal(missingEventProbeValidation.ok, false);
 assert.equal(missingEventProbeValidation.reasonCodes.includes('runtime-proof-event-trace-hash-missing'), true);
+
+const missingAccessibilityProbeValidation = validateRuntimeProofAgainstProbe({
+  ...sourceBoundProof,
+  runtimeProofCapsule: {
+    ...sourceBoundProof.runtimeProofCapsule,
+    accessibilitySnapshotHash: undefined
+  }
+}, probeSpec);
+assert.equal(missingAccessibilityProbeValidation.ok, false);
+assert.equal(missingAccessibilityProbeValidation.reasonCodes.includes('runtime-proof-accessibility-snapshot-hash-missing'), true);
+
+const missingFocusProbeValidation = validateRuntimeProofAgainstProbe({
+  ...sourceBoundProof,
+  runtimeProofCapsule: {
+    ...sourceBoundProof.runtimeProofCapsule,
+    focusSnapshotHash: undefined
+  }
+}, probeSpec);
+assert.equal(missingFocusProbeValidation.ok, false);
+assert.equal(missingFocusProbeValidation.reasonCodes.includes('runtime-proof-focus-snapshot-hash-missing'), true);
 
 const wrongModeProbeValidation = validateRuntimeProofAgainstProbe(sourceBoundProof, {
   ...probeSpec,
@@ -311,6 +339,8 @@ const fakePage = {
       computedStyleSnapshot: [{ path: '#root', properties: { display: 'block', color: 'rgb(0, 0, 0)' } }],
       layoutSnapshot: [{ path: '#root', rect: { x: 0, y: 0, width: 320, height: 120 } }],
       eventTrace: [{ sequence: 0, type: 'click', target: '#root' }],
+      accessibilitySnapshot: [{ path: '#root', tag: 'main', role: 'main' }],
+      focusSnapshot: { path: '#root', tag: 'main', role: 'main' },
       layoutShift: { cumulativeLayoutShift: 0, entries: [] }
     };
   }
@@ -337,6 +367,8 @@ assert.equal(playwrightProof.runtimeProofCapsule.domSnapshotHash.startsWith('fnv
 assert.equal(playwrightProof.runtimeProofCapsule.computedStyleHash.startsWith('fnv1a32:'), true);
 assert.equal(playwrightProof.runtimeProofCapsule.layoutSnapshotHash.startsWith('fnv1a32:'), true);
 assert.equal(playwrightProof.runtimeProofCapsule.eventTraceHash.startsWith('fnv1a32:'), true);
+assert.equal(playwrightProof.runtimeProofCapsule.accessibilitySnapshotHash.startsWith('fnv1a32:'), true);
+assert.equal(playwrightProof.runtimeProofCapsule.focusSnapshotHash.startsWith('fnv1a32:'), true);
 assert.equal(playwrightProof.runtimeProofCapsule.screenshotHash.startsWith('fnv1a32:'), true);
 assert.equal(playwrightProof.validation.ok, true);
 

@@ -48,6 +48,8 @@ export type FrontierRuntimeProofReasonCode =
   | 'runtime-proof-computed-style-hash-missing'
   | 'runtime-proof-layout-snapshot-hash-missing'
   | 'runtime-proof-event-trace-hash-missing'
+  | 'runtime-proof-accessibility-snapshot-hash-missing'
+  | 'runtime-proof-focus-snapshot-hash-missing'
   | 'runtime-proof-layout-shift-hash-missing'
   | 'runtime-proof-screenshot-hash-missing'
   | 'runtime-proof-source-bound-proof-required'
@@ -114,6 +116,8 @@ export interface FrontierRuntimeProofCapsuleInput {
     computedStyleHash?: string;
     layoutSnapshotHash?: string;
     eventTraceHash?: string;
+    accessibilitySnapshotHash?: string;
+    focusSnapshotHash?: string;
     layoutShiftHash?: string;
     screenshotHash?: string;
     cumulativeLayoutShift?: number;
@@ -123,6 +127,8 @@ export interface FrontierRuntimeProofCapsuleInput {
   computedStyleHash?: string;
   layoutSnapshotHash?: string;
   eventTraceHash?: string;
+  accessibilitySnapshotHash?: string;
+  focusSnapshotHash?: string;
   layoutShiftHash?: string;
   screenshotHash?: string;
   cumulativeLayoutShift?: number;
@@ -218,6 +224,8 @@ export interface FrontierSourceBoundRuntimeProof {
   runtimeComputedStyleHash?: string;
   runtimeLayoutSnapshotHash?: string;
   runtimeEventTraceHash?: string;
+  runtimeAccessibilitySnapshotHash?: string;
+  runtimeFocusSnapshotHash?: string;
   runtimeLayoutShiftHash?: string;
   runtimeScreenshotHash?: string;
   runtimeCumulativeLayoutShift?: number;
@@ -280,6 +288,8 @@ export interface FrontierRuntimeProofCapsule {
   computedStyleHash?: string;
   layoutSnapshotHash?: string;
   eventTraceHash?: string;
+  accessibilitySnapshotHash?: string;
+  focusSnapshotHash?: string;
   layoutShiftHash?: string;
   screenshotHash?: string;
   telemetryHash?: string;
@@ -334,6 +344,8 @@ export interface FrontierRuntimeProofTelemetryRequirements {
   requireComputedStyleHash?: boolean;
   requireLayoutSnapshotHash?: boolean;
   requireEventTraceHash?: boolean;
+  requireAccessibilitySnapshotHash?: boolean;
+  requireFocusSnapshotHash?: boolean;
   requireLayoutShiftHash?: boolean;
   requireScreenshotHash?: boolean;
   maxCumulativeLayoutShift?: number;
@@ -347,6 +359,8 @@ export interface FrontierRuntimeProofTelemetrySummary {
   hasComputedStyleHash: boolean;
   hasLayoutSnapshotHash: boolean;
   hasEventTraceHash: boolean;
+  hasAccessibilitySnapshotHash: boolean;
+  hasFocusSnapshotHash: boolean;
   hasLayoutShiftHash: boolean;
   hasScreenshotHash: boolean;
   telemetryHash?: string;
@@ -354,6 +368,8 @@ export interface FrontierRuntimeProofTelemetrySummary {
   computedStyleHash?: string;
   layoutSnapshotHash?: string;
   eventTraceHash?: string;
+  accessibilitySnapshotHash?: string;
+  focusSnapshotHash?: string;
   layoutShiftHash?: string;
   screenshotHash?: string;
   cumulativeLayoutShift?: number;
@@ -481,6 +497,8 @@ export function normalizeRuntimeProofCapsule(input: unknown): FrontierRuntimePro
     computedStyleHash: firstString(capsule.computedStyleHash, telemetry?.computedStyleHash),
     layoutSnapshotHash: firstString(capsule.layoutSnapshotHash, telemetry?.layoutSnapshotHash),
     eventTraceHash: firstString(capsule.eventTraceHash, telemetry?.eventTraceHash),
+    accessibilitySnapshotHash: firstString(capsule.accessibilitySnapshotHash, telemetry?.accessibilitySnapshotHash),
+    focusSnapshotHash: firstString(capsule.focusSnapshotHash, telemetry?.focusSnapshotHash),
     layoutShiftHash: firstString(capsule.layoutShiftHash, telemetry?.layoutShiftHash),
     screenshotHash: firstString(capsule.screenshotHash, telemetry?.screenshotHash),
     telemetryHash: firstString(capsule.telemetryHash, telemetry?.hash),
@@ -643,6 +661,8 @@ export function createRuntimeProofProbeSpec(input: FrontierRuntimeProofProbeSpec
     requireComputedStyleHash: input.requireComputedStyleHash ?? false,
     requireLayoutSnapshotHash: input.requireLayoutSnapshotHash ?? false,
     requireEventTraceHash: input.requireEventTraceHash ?? false,
+    requireAccessibilitySnapshotHash: input.requireAccessibilitySnapshotHash ?? false,
+    requireFocusSnapshotHash: input.requireFocusSnapshotHash ?? false,
     requireLayoutShiftHash: input.requireLayoutShiftHash ?? false,
     requireScreenshotHash: input.requireScreenshotHash ?? false,
     maxCumulativeLayoutShift: input.maxCumulativeLayoutShift
@@ -665,6 +685,8 @@ export function runtimeProofTelemetrySummary(input: unknown): FrontierRuntimePro
     hasComputedStyleHash: Boolean(normalizedCapsule?.computedStyleHash),
     hasLayoutSnapshotHash: Boolean(normalizedCapsule?.layoutSnapshotHash),
     hasEventTraceHash: Boolean(normalizedCapsule?.eventTraceHash),
+    hasAccessibilitySnapshotHash: Boolean(normalizedCapsule?.accessibilitySnapshotHash),
+    hasFocusSnapshotHash: Boolean(normalizedCapsule?.focusSnapshotHash),
     hasLayoutShiftHash: Boolean(normalizedCapsule?.layoutShiftHash),
     hasScreenshotHash: Boolean(normalizedCapsule?.screenshotHash),
     telemetryHash: normalizedCapsule?.telemetryHash,
@@ -672,6 +694,8 @@ export function runtimeProofTelemetrySummary(input: unknown): FrontierRuntimePro
     computedStyleHash: normalizedCapsule?.computedStyleHash,
     layoutSnapshotHash: normalizedCapsule?.layoutSnapshotHash,
     eventTraceHash: normalizedCapsule?.eventTraceHash,
+    accessibilitySnapshotHash: normalizedCapsule?.accessibilitySnapshotHash,
+    focusSnapshotHash: normalizedCapsule?.focusSnapshotHash,
     layoutShiftHash: normalizedCapsule?.layoutShiftHash,
     screenshotHash: normalizedCapsule?.screenshotHash,
     cumulativeLayoutShift: normalizedCapsule?.cumulativeLayoutShift
@@ -826,6 +850,8 @@ export function createSourceBoundRuntimeProof(
     runtimeComputedStyleHash: capsule?.computedStyleHash,
     runtimeLayoutSnapshotHash: capsule?.layoutSnapshotHash,
     runtimeEventTraceHash: capsule?.eventTraceHash,
+    runtimeAccessibilitySnapshotHash: capsule?.accessibilitySnapshotHash,
+    runtimeFocusSnapshotHash: capsule?.focusSnapshotHash,
     runtimeLayoutShiftHash: capsule?.layoutShiftHash,
     runtimeScreenshotHash: capsule?.screenshotHash,
     runtimeCumulativeLayoutShift: capsule?.cumulativeLayoutShift,
@@ -1050,6 +1076,8 @@ function addTelemetryRequirementReasonCodes(
   if (requirements.requireComputedStyleHash && !telemetry.hasComputedStyleHash) reasonCodes.push('runtime-proof-computed-style-hash-missing');
   if (requirements.requireLayoutSnapshotHash && !telemetry.hasLayoutSnapshotHash) reasonCodes.push('runtime-proof-layout-snapshot-hash-missing');
   if (requirements.requireEventTraceHash && !telemetry.hasEventTraceHash) reasonCodes.push('runtime-proof-event-trace-hash-missing');
+  if (requirements.requireAccessibilitySnapshotHash && !telemetry.hasAccessibilitySnapshotHash) reasonCodes.push('runtime-proof-accessibility-snapshot-hash-missing');
+  if (requirements.requireFocusSnapshotHash && !telemetry.hasFocusSnapshotHash) reasonCodes.push('runtime-proof-focus-snapshot-hash-missing');
   if (requirements.requireLayoutShiftHash && !telemetry.hasLayoutShiftHash) reasonCodes.push('runtime-proof-layout-shift-hash-missing');
   if (requirements.requireScreenshotHash && !telemetry.hasScreenshotHash) reasonCodes.push('runtime-proof-screenshot-hash-missing');
 }

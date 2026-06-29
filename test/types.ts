@@ -77,6 +77,8 @@ if (sourceBoundValidation.ok) {
 
 const telemetry: FrontierRuntimeProofTelemetrySummary = runtimeProofTelemetrySummary(sourceBoundProof);
 telemetry.hasEventTraceHash satisfies boolean;
+telemetry.hasAccessibilitySnapshotHash satisfies boolean;
+telemetry.hasFocusSnapshotHash satisfies boolean;
 
 const probeSpec: FrontierRuntimeProofProbeSpec = createRuntimeProofProbeSpec({
   id: 'probe',
@@ -87,6 +89,8 @@ const probeSpec: FrontierRuntimeProofProbeSpec = createRuntimeProofProbeSpec({
   requiredSignals: ['html-event-handler-runtime'],
   requiredSourceRoles: ['base', 'worker', 'head', 'output'],
   sourceHashes,
+  requireAccessibilitySnapshotHash: true,
+  requireFocusSnapshotHash: true,
   requireTelemetryHash: false,
   requireSourceBoundProof: true
 });

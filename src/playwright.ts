@@ -62,6 +62,8 @@ export interface FrontierPlaywrightRuntimeTelemetry {
   computedStyleSnapshot: unknown;
   layoutSnapshot: unknown;
   eventTrace: unknown;
+  accessibilitySnapshot: unknown;
+  focusSnapshot: unknown;
   layoutShift: {
     cumulativeLayoutShift: number;
     entries: unknown[];
@@ -175,6 +177,8 @@ export async function capturePlaywrightRuntimeProof(
       computedStyleHash: hashRuntimeProofValue(telemetry.computedStyleSnapshot),
       layoutSnapshotHash: hashRuntimeProofValue(telemetry.layoutSnapshot),
       eventTraceHash: hashRuntimeProofValue(telemetry.eventTrace),
+      accessibilitySnapshotHash: hashRuntimeProofValue(telemetry.accessibilitySnapshot),
+      focusSnapshotHash: hashRuntimeProofValue(telemetry.focusSnapshot),
       layoutShiftHash: hashRuntimeProofValue(telemetry.layoutShift),
       screenshotHash,
       cumulativeLayoutShift: telemetry.layoutShift.cumulativeLayoutShift
@@ -390,6 +394,8 @@ function captureBrowserTelemetry(input: BrowserCaptureInput): FrontierPlaywright
     computedStyleSnapshot: elements.map((element) => computedStyleRecord(element, input.styleProperties)),
     layoutSnapshot: elements.map((element) => layoutRecord(element)),
     eventTrace: global.__frontierRuntimeProofEventTrace ?? [],
+    accessibilitySnapshot: elements.map((element) => accessibilityRecord(element)),
+    focusSnapshot: focusRecord(document.activeElement),
     layoutShift: {
       cumulativeLayoutShift: roundBrowserNumber(layoutShiftEntries.reduce((sum, entry) => {
         const value = typeof entry.value === 'number' ? entry.value : 0;
@@ -463,6 +469,31 @@ function layoutRecord(element: Element): Record<string, unknown> {
   });
 }
 
+function accessibilityRecord(element: Element): Record<string, unknown> {
+  const label = accessibleLabelText(element);
+  return compactBrowserRecord({
+    path: cssPath(element),
+    tag: element.tagName.toLowerCase(),
+    role: element.getAttribute('role') ?? implicitRole(element),
+    labelHash: label ? hashBrowserString(label) : undefined,
+    aria: ariaAttributesRecord(element),
+    tabIndex: element instanceof HTMLElement ? element.tabIndex : undefined,
+    disabled: isDisabledElement(element) ? true : undefined,
+    hidden: isHiddenElement(element) ? true : undefined,
+    focusable: isFocusableElement(element) ? true : undefined,
+    active: element === document.activeElement ? true : undefined
+  });
+}
+
+function focusRecord(activeElement: Element | null): Record<string, unknown> {
+  if (!(activeElement instanceof Element)) return {};
+  return compactBrowserRecord({
+    path: cssPath(activeElement),
+    tag: activeElement.tagName.toLowerCase(),
+    role: activeElement.getAttribute('role') ?? implicitRole(activeElement)
+  });
+}
+
 function rectRecord(rect: DOMRectReadOnly | undefined): Record<string, number> | undefined {
   if (!rect) return undefined;
   return {
@@ -495,6 +526,82 @@ function cssPath(element: Element): string {
     current = parent;
   }
   return parts.join(' > ');
+}
+
+function ariaAttributesRecord(element: Element): Record<string, string> | undefined {
+  const attributes = Array.from(element.attributes)
+    .filter((attribute) => attribute.name.startsWith('aria-'))
+    .sort((left, right) => left.name.localeCompare(right.name));
+  if (attributes.length === 0) return undefined;
+  return Object.fromEntries(attributes.map((attribute) => [attribute.name, attribute.value]));
+}
+
+function accessibleLabelText(element: Element): string | undefined {
+  const explicit = element.getAttribute('aria-label')?.trim();
+  if (explicit) return explicit;
+  const labelledBy = element.getAttribute('aria-labelledby')?.trim();
+  if (labelledBy) {
+    const text = labelledBy.split(/\s+/)
+      .map((id) => document.getElementById(id)?.textContent?.trim())
+      .filter((value): value is string => Boolean(value))
+      .join(' ')
+      .trim();
+    if (text) return text;
+  }
+  const title = element.getAttribute('title')?.trim();
+  if (title) return title;
+  const alt = element.getAttribute('alt')?.trim();
+  return alt || undefined;
+}
+
+function implicitRole(element: Element): string | undefined {
+  const tag = element.tagName.toLowerCase();
+  if (tag === 'a' && element.hasAttribute('href')) return 'link';
+  if (tag === 'button') return 'button';
+  if (tag === 'textarea') return 'textbox';
+  if (tag === 'select') return 'combobox';
+  if (tag === 'img') return 'img';
+  if (tag === 'nav') return 'navigation';
+  if (tag === 'main') return 'main';
+  if (tag === 'header') return 'banner';
+  if (tag === 'footer') return 'contentinfo';
+  if (tag === 'ul' || tag === 'ol') return 'list';
+  if (tag === 'li') return 'listitem';
+  if (/^h[1-6]$/.test(tag)) return 'heading';
+  if (tag === 'input') return inputImplicitRole(element);
+  return undefined;
+}
+
+function inputImplicitRole(element: Element): string | undefined {
+  if (!(element instanceof HTMLInputElement)) return undefined;
+  if (element.type === 'checkbox') return 'checkbox';
+  if (element.type === 'radio') return 'radio';
+  if (element.type === 'range') return 'slider';
+  if (element.type === 'button' || element.type === 'submit' || element.type === 'reset') return 'button';
+  return 'textbox';
+}
+
+function isDisabledElement(element: Element): boolean {
+  return element.hasAttribute('disabled') || element.getAttribute('aria-disabled') === 'true';
+}
+
+function isHiddenElement(element: Element): boolean {
+  const htmlElement = element as HTMLElement & { inert?: boolean };
+  return htmlElement.hidden === true ||
+    htmlElement.inert === true ||
+    element.hasAttribute('inert') ||
+    element.getAttribute('aria-hidden') === 'true';
+}
+
+function isFocusableElement(element: Element): boolean {
+  if (isDisabledElement(element) || isHiddenElement(element)) return false;
+  if (element instanceof HTMLElement && element.tabIndex >= 0) return true;
+  const tag = element.tagName.toLowerCase();
+  return tag === 'button' ||
+    tag === 'select' ||
+    tag === 'textarea' ||
+    (tag === 'a' && element.hasAttribute('href')) ||
+    (tag === 'input' && (element as HTMLInputElement).type !== 'hidden');
 }
 
 function cssEscape(value: string): string {
